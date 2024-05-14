@@ -51,6 +51,10 @@ int main(int argc, char **argv)
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--directory")) {
             dir = argv[i + 1];
+            size_t dir_len = strlen(dir);
+            if (dir[dir_len - 1] == '/') {
+                dir[dir_len - 1] = '\0';
+            }
         }
     }
 
@@ -154,7 +158,7 @@ int main(int argc, char **argv)
             print_headers(headers, 1);
 
             FILE *f = fopen(full_path, "rb");
-            if (access(file, F_OK)) {
+            if (access(full_path, F_OK)) {
                 res_len = sprintf(response, "HTTP/1.1 404 Not Found\r\n\r\n");
                 DBG("Can not open file for reading %s: %m", full_path);
             } else {
