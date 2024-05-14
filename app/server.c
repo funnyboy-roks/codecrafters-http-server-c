@@ -45,26 +45,26 @@ void print_bytes(char *bytes, size_t len)
     printf("]");
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
+    char *dir = NULL;
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "--directory")) {
+            dir = argv[i + 1];
+        }
+    }
 	// Disable output buffering
 	setbuf(stdout, NULL);
 
     struct sockaddr_in client_addr;
 
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_fd == -1) {
-        printf("Socket creation failed: %s...\n", strerror(errno));
-        return 1;
-    }
+    if (server_fd == -1) PANIC("Socket creation failed: %m...\n");
 
     // Since the tester restarts your program quite often, setting REUSE_PORT
     // ensures that we don't run into 'Address already in use' errors
     int reuse = 1;
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse))) {
-        printf("SO_REUSEPORT failed: %s \n", strerror(errno));
-        return 1;
-    }
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse))) PANIC("SO_REUSEPORT failed: %m \n");
 
     struct sockaddr_in serv_addr = {
         .sin_family = AF_INET ,
@@ -78,10 +78,7 @@ int main(void)
     }
 
     int connection_backlog = 5;
-    if (listen(server_fd, connection_backlog)) {
-        printf("Listen failed: %s \n", strerror(errno));
-        return 1;
-    }
+    if (listen(server_fd, connection_backlog)) PANIC("Listen failed: %m \n");
 
     printf("Waiting for a client to connect...\n");
     socklen_t client_addr_len = sizeof(client_addr);
@@ -105,7 +102,7 @@ int main(void)
         printf("req.headers = ");
         print_headers(req.headers, req.headers_len);
 
-        char response[1024];
+        char *response = malloc(1024);
         size_t res_len;
         if (!strcmp(req.method, "GET") && !strcmp(req.path, "/user-agent")) {
             Response res = {0};
@@ -131,6 +128,41 @@ int main(void)
 
             serres(response, res, &res_len);
             printf("res = %.*s", (int) res_len, response);
+        } else if (!strcmp(req.method, "GET") && !strncmp(req.path, "/files/", sizeof("/files/") - 1)) {
+            char *file = req.path + sizeof("/files/") - 1;
+
+            DBG("file = %s", file);
+
+            Response res = {0};
+            ResponseHeader headers[] = {
+                {
+                    .key = "Content-Type",
+                    .value = "application/octet-stream",
+                }
+            };
+            res.headers = headers;
+            res.headers_len = sizeof(headers) / sizeof(*headers);
+
+            printf("res.headers = ");
+            print_headers(headers, 1);
+
+            FILE *f = fopen(file, "rb");
+            if (f == NULL) {
+                res_len = sprintf(response, "HTTP/1.1 404 Not Found\r\n\r\n");
+            } else {
+                fseek(f, 0, SEEK_END);
+                long fsize = ftell(f);
+                fseek(f, 0, SEEK_SET);
+                response = realloc(response, 1024 + fsize);
+                res.body = malloc(fsize);
+                res.body_len = fread(res.body, 1, fsize, f);
+
+                printf("res.body = %s\n", res.body);
+
+                serres(response, res, &res_len);
+                printf("res = %.*s", (int) res_len, response);
+                free(res.body);
+            }
         } else if (!strcmp(req.method, "GET") && !strncmp(req.path, "/echo/", sizeof("/echo/") - 1)) {
             char *s = req.path + sizeof("/echo/") - 1;
             Response res = {0};
