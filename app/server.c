@@ -8,6 +8,13 @@
 #include <unistd.h>
 
 #include "./request.h"
+#include "./response.h"
+
+#define DBG(...) do {                             \
+    printf("[DBG] %s:%d ", __FILE__, __LINE__);   \
+    printf(__VA_ARGS__);                          \
+    printf("\n");                                 \
+} while (0);
 
 #define PANIC(...) do {                           \
     printf("[PANIC] %s:%d ", __FILE__, __LINE__); \
@@ -15,6 +22,16 @@
     printf("\n");                                 \
     exit(1);                                      \
 } while (0);
+
+void print_headers(void *head, size_t len) {
+    printf("{\n");
+    RequestHeader *headers = (RequestHeader *) head;
+    for (size_t i = 0; i < len; ++i) {
+        RequestHeader header = headers[i];
+        printf("    %s: %s\n", header.key, header.value);
+    }
+    printf("}\n");
+}
 
 void print_bytes(char *bytes, size_t len)
 {
@@ -25,7 +42,7 @@ void print_bytes(char *bytes, size_t len)
             printf(", ");
         }
     }
-    printf("]\n");
+    printf("]");
 }
 
 int main(void)
@@ -76,22 +93,44 @@ int main(void)
         char buf[256] = {0};
         ssize_t len = read(client_fd, buf, 256);
 
-        Request req = parse_request(buf, len);
-
-        printf("req.method = '%s'\n", req.method);
-        printf("req.path = '%s'\n", req.path);
-        // printf("req.headers = '%s'", req.path);
-
         if (len == -1) PANIC("%m");
 
         printf("buf = %s", buf);
         printf("buf = "); print_bytes(buf, len); printf("\n");
 
-        char *response;
-        if (!strcmp(req.method, "GET") && !strcmp(req.path, "/")) {
-            response = "HTTP/1.1 200 OK\r\n\r\n";
+        Request req = parse_request(buf, len);
+
+        printf("req.method = '%s'\n", req.method);
+        printf("req.path = '%s'\n", req.path);
+        printf("req.headers = ");
+        print_headers(req.headers, req.headers_len);
+
+        char response[1024];
+        size_t res_len;
+        if (!strcmp(req.method, "GET") && !strncmp(req.path, "/echo/", sizeof("/echo/") - 1)) {
+            char *s = req.path + sizeof("/echo/") - 1;
+            Response res = {0};
+            ResponseHeader headers[] = {
+                {
+                    .key = "Content-Type",
+                    .value = "text/plain",
+                }
+            };
+            res.headers = headers;
+            res.headers_len = sizeof(headers) / sizeof(*headers);
+            printf("res.headers = ");
+            print_headers(headers, 1);
+
+            res.body = s;
+            res.body_len = strlen(s);
+            printf("res.body = %s\n", res.body);
+
+            serres(response, res, &res_len);
+            printf("res = %.*s", (int) res_len, response);
+        } else if (!strcmp(req.method, "GET") && !strcmp(req.path, "/")) {
+            res_len = sprintf(response, "HTTP/1.1 200 OK\r\n\r\n");
         } else {
-            response = "HTTP/1.1 404 Not Found\r\n\r\n";
+            res_len = sprintf(response, "HTTP/1.1 404 Not Found\r\n\r\n");
         }
 
         send(client_fd, response, strlen(response), 0);

@@ -3,15 +3,15 @@
 typedef struct {
     char *key;
     char *value;
-} Header;
+} ResponseHeader;
 
 typedef struct {
     int status;
     char *status_text;
-    Header *headers;
+    ResponseHeader *headers;
     size_t headers_len;
     char *body;
     size_t body_len;
 } Response;
 
-char *serres(Response res, size_t *len);
+void serres(char *buf, Response res, size_t *len);

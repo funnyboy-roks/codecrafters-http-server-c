@@ -3,19 +3,44 @@
 #include <string.h>
 #include <stdio.h>
 
-char *serres(Response res, size_t *len)
+void serres(char *buf, Response res, size_t *len)
 {
     const size_t buf_cap = 1024;
-    char *out = malloc(buf_cap);
 
-    char *ptr = out;
+    *len = 0;
 
-    ptr += snprintf(ptr,
-        out + buf_cap - ptr,
+    *len += snprintf(buf + *len,
+        buf_cap - *len,
         "HTTP/1.1 %d %s\r\n",
         res.status == 0 ? 200 : res.status,
         res.status_text == NULL ? "OK" : res.status_text
     );
 
-    return out;
+    size_t headers_len = 0;
+
+    for (size_t i = 0; i < res.headers_len; ++i) {
+        // "key: value\r\n"
+        *len += snprintf(buf + *len,
+            buf_cap - *len,
+            "%s: %s\r\n",
+            res.headers[i].key,
+            res.headers[i].value
+        );
+    }
+
+    *len += snprintf(buf + *len,
+        buf_cap - *len,
+        "\r\n"
+    );
+
+    if (res.body_len) {
+        *len += snprintf(buf + *len,
+            buf_cap - *len,
+            "Content-Length: %ld\r\n",
+            res.body_len
+        );
+    }
+
+    memcpy(buf + *len, res.body, res.body_len);
+    *len += res.body_len;
 }
