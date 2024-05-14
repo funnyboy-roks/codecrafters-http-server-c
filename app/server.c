@@ -7,7 +7,20 @@
 #include <errno.h>
 #include <unistd.h>
 
-int main(void) {
+void print_bytes(char *bytes, size_t len)
+{
+    printf("[");
+    for (size_t i = 0; i < len; ++i) {
+        printf("%02x", bytes[i]);
+        if (i < len - 1) {
+            printf(", ");
+        }
+    }
+    printf("]\n");
+}
+
+int main(void)
+{
 	// Disable output buffering
 	setbuf(stdout, NULL);
 
@@ -50,8 +63,29 @@ int main(void) {
     printf("Waiting for a client to connect...\n");
     socklen_t client_addr_len = sizeof(client_addr);
 
-    accept(server_fd, (struct sockaddr *) &client_addr, &client_addr_len);
-    printf("Client connected\n");
+    int client_fd;
+    while (1) {
+        if ((client_fd = accept(server_fd, (struct sockaddr *) &client_addr, &client_addr_len)) == -1) {
+            printf("ERROR: %m\n");
+            exit(1);
+        }
+
+        char buf[256] = {0};
+        ssize_t len = read(client_fd, buf, 256);
+
+        if (len == -1) {
+            printf("ERROR: %m\n");
+            exit(1);
+        }
+
+        printf("buf = %s", buf);
+        printf("buf = "); print_bytes(buf, len); printf("\n");
+
+        char *response = "HTTP/1.1 200 OK\r\n\r\n";
+        send(client_fd, response, strlen(response), 0);
+
+        close(client_fd);
+    }
 
     close(server_fd);
 
