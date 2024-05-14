@@ -107,7 +107,31 @@ int main(void)
 
         char response[1024];
         size_t res_len;
-        if (!strcmp(req.method, "GET") && !strncmp(req.path, "/echo/", sizeof("/echo/") - 1)) {
+        if (!strcmp(req.method, "GET") && !strcmp(req.path, "/user-agent")) {
+            Response res = {0};
+            ResponseHeader headers[] = {
+                {
+                    .key = "Content-Type",
+                    .value = "text/plain",
+                }
+            };
+            res.headers = headers;
+            res.headers_len = sizeof(headers) / sizeof(*headers);
+            printf("res.headers = ");
+            print_headers(headers, 1);
+
+            for(size_t i = 0; i < req.headers_len; ++i) {
+                if (!strcmp(req.headers[i].key, "user-agent")) {
+                    res.body = req.headers[i].value;
+                    res.body_len = strlen(res.body);
+                }
+            }
+
+            printf("res.body = %s\n", res.body);
+
+            serres(response, res, &res_len);
+            printf("res = %.*s", (int) res_len, response);
+        } else if (!strcmp(req.method, "GET") && !strncmp(req.path, "/echo/", sizeof("/echo/") - 1)) {
             char *s = req.path + sizeof("/echo/") - 1;
             Response res = {0};
             ResponseHeader headers[] = {
