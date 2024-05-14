@@ -156,7 +156,7 @@ int main(int argc, char **argv)
             FILE *f = fopen(full_path, "rb");
             if (access(file, F_OK)) {
                 res_len = sprintf(response, "HTTP/1.1 404 Not Found\r\n\r\n");
-                DBG("Can not open file for reading %s: %m", file);
+                DBG("Can not open file for reading %s: %m", full_path);
             } else {
                 fseek(f, 0, SEEK_END);
                 long fsize = ftell(f);
