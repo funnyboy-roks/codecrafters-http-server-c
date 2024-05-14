@@ -7,6 +7,42 @@
 #include <errno.h>
 #include <unistd.h>
 
+#define PANIC(...) do {                                \
+    printf("[PANIC] %s:%d ", __FILE_NAME__, __LINE__); \
+    printf(__VA_ARGS__);                               \
+    printf("\n");                                      \
+    exit(1);                                           \
+} while (0);
+
+typedef struct {
+    char *key;
+    char *value;
+} Header;
+
+typedef struct {
+    char *method;
+    char *path;
+    Header *headers;
+    char *body;
+    size_t body_len;
+} Request;
+
+Request parse_request(char *bytes, size_t len)
+{
+    Request out = {0};
+
+    out.method = bytes;
+    int i;
+    for (i = 0; bytes[i] != ' '; ++i);
+    bytes[i] = '\0';
+
+    out.path = bytes + i + 1;
+    for (i = 0; bytes[i] != ' '; ++i);
+    bytes[i] = '\0';
+
+    return out;
+}
+
 void print_bytes(char *bytes, size_t len)
 {
     printf("[");
@@ -24,9 +60,6 @@ int main(void)
 	// Disable output buffering
 	setbuf(stdout, NULL);
 
-	// You can use print statements as follows for debugging, they'll be visible when running tests.
-    printf("Logs from your program will appear here!\n");
-
     struct sockaddr_in client_addr;
 
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -38,7 +71,7 @@ int main(void)
     // Since the tester restarts your program quite often, setting REUSE_PORT
     // ensures that we don't run into 'Address already in use' errors
     int reuse = 1;
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) < 0) {
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse))) {
         printf("SO_REUSEPORT failed: %s \n", strerror(errno));
         return 1;
     }
@@ -65,23 +98,29 @@ int main(void)
 
     int client_fd;
     while (1) {
-        if ((client_fd = accept(server_fd, (struct sockaddr *) &client_addr, &client_addr_len)) == -1) {
-            printf("ERROR: %m\n");
-            exit(1);
-        }
+        if ((client_fd = accept(server_fd, (struct sockaddr *) &client_addr, &client_addr_len)) == -1) PANIC("%m");
 
         char buf[256] = {0};
         ssize_t len = read(client_fd, buf, 256);
 
-        if (len == -1) {
-            printf("ERROR: %m\n");
-            exit(1);
-        }
+        Request req = parse_request(buf, len);
+
+        printf("req.method = '%s'\n", req.method);
+        printf("req.path = '%s'\n", req.path);
+        // printf("req.headers = '%s'", req.path);
+
+        if (len == -1) PANIC("%m");
 
         printf("buf = %s", buf);
         printf("buf = "); print_bytes(buf, len); printf("\n");
 
-        char *response = "HTTP/1.1 200 OK\r\n\r\n";
+        char *response;
+        if (!strcmp(req.method, "GET") && !strcmp(req.path, "/")) {
+            response = "HTTP/1.1 200 OK\r\n\r\n";
+        } else {
+            response = "HTTP/1.1 404 Not Found\r\n\r\n";
+        }
+
         send(client_fd, response, strlen(response), 0);
 
         close(client_fd);
