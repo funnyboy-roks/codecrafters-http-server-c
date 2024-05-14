@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <zlib.h>
 
 #include "./request.h"
 #include "./response.h"
@@ -24,6 +25,23 @@
     exit(1);                                      \
 } while (0);
 
+int compressToGzip(const char* input, int inputSize, char* output, int outputSize)
+{
+    z_stream zs = {0};
+    zs.zalloc = Z_NULL;
+    zs.zfree = Z_NULL;
+    zs.opaque = Z_NULL;
+    zs.avail_in = (uInt)inputSize;
+    zs.next_in = (Bytef *)input;
+    zs.avail_out = (uInt)outputSize;
+    zs.next_out = (Bytef *)output;
+
+    deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 | 16, 8, Z_DEFAULT_STRATEGY);
+    deflate(&zs, Z_FINISH);
+    deflateEnd(&zs);
+    return zs.total_out;
+}
+
 void print_headers(void *head, size_t len) {
     printf("{\n");
     RequestHeader *headers = (RequestHeader *)head;
@@ -37,9 +55,7 @@ void print_headers(void *head, size_t len) {
 char *get_header(void *headers, size_t len, char *name) {
     RequestHeader *hs = (RequestHeader *)headers;
     for (size_t i = 0; i < len; ++i) {
-        DBG("i     = %ld", i);
         RequestHeader header = hs[i];
-        DBG("hs[i] = %s: %s", header.key, header.value);
         if (!strcmp(header.key, name)) {
             return header.value;
         }
@@ -47,8 +63,9 @@ char *get_header(void *headers, size_t len, char *name) {
     return NULL;
 }
 
-void print_bytes(char *bytes, size_t len)
+void print_bytes(char *by, size_t len)
 {
+    unsigned char *bytes = (unsigned char *) by;
     printf("[");
     for (size_t i = 0; i < len; ++i) {
         printf("%02x", bytes[i]);
@@ -220,14 +237,12 @@ int main(int argc, char **argv)
                 [1]={0}
             };
 
-            DBG("foo");
+            res.body = malloc(1024);
 
             res.headers = headers;
             res.headers_len = 1;
 
-            DBG("foo2");
             char *ce = get_header(req.headers, req.headers_len, "accept-encoding");
-            DBG("foo3");
 
             if (ce) {
                 bool has_gzip = false;
@@ -239,28 +254,39 @@ int main(int argc, char **argv)
                 }
 
                 if (has_gzip) {
+                    int len = compressToGzip(s, strlen(s), res.body, 1024);
+                    if (len < 0) {
+                        PANIC("Compression failed");
+                    }
                     res.headers[res.headers_len].key = "Content-Encoding";
                     res.headers[res.headers_len++].value = "gzip";
+                    DBG("len = %d", len);
+                    res.body_len = len;
                 }
             }
-            DBG("foo4");
 
             printf("res.headers = ");
             print_headers(headers, res.headers_len);
 
-            res.body = s;
-            res.body_len = strlen(s);
-            printf("res.body = %s\n", res.body);
+            if (res.body == NULL) {
+                res.body = s;
+                res.body_len = strlen(s);
+                printf("res.body = %s\n", res.body);
+            } else {
+                printf("res.body = ");
+                print_bytes(res.body, res.body_len);
+                printf("\n");
+            }
 
             serres(response, res, &res_len);
-            printf("res = %.*s", (int) res_len, response);
+            free(res.body);
         } else if (!strcmp(req.method, "GET") && !strcmp(req.path, "/")) {
             res_len = sprintf(response, "HTTP/1.1 200 OK\r\n\r\n");
         } else {
             res_len = sprintf(response, "HTTP/1.1 404 Not Found\r\n\r\n");
         }
 
-        send(client_fd, response, strlen(response), 0);
+        send(client_fd, response, res_len, 0);
 
         close(client_fd);
     }
