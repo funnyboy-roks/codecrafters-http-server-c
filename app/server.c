@@ -7,41 +7,14 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include "./request.h"
+
 #define PANIC(...) do {                           \
     printf("[PANIC] %s:%d ", __FILE__, __LINE__); \
     printf(__VA_ARGS__);                          \
     printf("\n");                                 \
     exit(1);                                      \
 } while (0);
-
-typedef struct {
-    char *key;
-    char *value;
-} Header;
-
-typedef struct {
-    char *method;
-    char *path;
-    Header *headers;
-    char *body;
-    size_t body_len;
-} Request;
-
-Request parse_request(char *bytes, size_t len)
-{
-    Request out = {0};
-
-    out.method = bytes;
-    int i;
-    for (i = 0; bytes[i] != ' '; ++i);
-    bytes[i] = '\0';
-
-    out.path = bytes + i + 1;
-    for (i = 0; bytes[i] != ' '; ++i);
-    bytes[i] = '\0';
-
-    return out;
-}
 
 void print_bytes(char *bytes, size_t len)
 {
