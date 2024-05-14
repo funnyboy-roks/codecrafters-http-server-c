@@ -16,8 +16,6 @@ void serres(char *buf, Response res, size_t *len)
         res.status_text == NULL ? "OK" : res.status_text
     );
 
-    size_t headers_len = 0;
-
     for (size_t i = 0; i < res.headers_len; ++i) {
         // "key: value\r\n"
         *len += snprintf(buf + *len,

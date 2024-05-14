@@ -25,12 +25,25 @@
 
 void print_headers(void *head, size_t len) {
     printf("{\n");
-    RequestHeader *headers = (RequestHeader *) head;
+    RequestHeader *headers = (RequestHeader *)head;
     for (size_t i = 0; i < len; ++i) {
         RequestHeader header = headers[i];
         printf("    %s: %s\n", header.key, header.value);
     }
     printf("}\n");
+}
+
+char *get_header(void *headers, size_t len, char *name) {
+    RequestHeader *hs = (RequestHeader *)headers;
+    for (size_t i = 0; i < len; ++i) {
+        DBG("i     = %ld", i);
+        RequestHeader header = hs[i];
+        DBG("hs[i] = %s: %s", header.key, header.value);
+        if (!strcmp(header.key, name)) {
+            return header.value;
+        }
+    }
+    return NULL;
 }
 
 void print_bytes(char *bytes, size_t len)
@@ -51,7 +64,6 @@ int main(int argc, char **argv)
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--directory")) {
             dir = argv[i + 1];
-            size_t dir_len = strlen(dir);
         }
     }
 
@@ -110,6 +122,7 @@ int main(int argc, char **argv)
 
         char *response = malloc(1024);
         size_t res_len;
+        DBG("%s - %s", req.method, req.path);
         if (!strcmp(req.method, "GET") && !strcmp(req.path, "/user-agent")) {
             Response res = {0};
             ResponseHeader headers[] = {
@@ -198,16 +211,30 @@ int main(int argc, char **argv)
         } else if (!strcmp(req.method, "GET") && !strncmp(req.path, "/echo/", sizeof("/echo/") - 1)) {
             char *s = req.path + sizeof("/echo/") - 1;
             Response res = {0};
-            ResponseHeader headers[] = {
-                {
+            ResponseHeader headers[2] = {
+                [0]={
                     .key = "Content-Type",
                     .value = "text/plain",
-                }
+                },
+                [1]={0}
             };
+
+            DBG("foo");
+
             res.headers = headers;
-            res.headers_len = sizeof(headers) / sizeof(*headers);
+            res.headers_len = 1;
+
+            DBG("foo2");
+            char *ce = get_header(req.headers, req.headers_len, "accept-encoding");
+            DBG("foo3");
+            if (ce) {
+                res.headers[res.headers_len].key = "Content-Encoding";
+                res.headers[res.headers_len++].value = ce;
+            }
+            DBG("foo4");
+
             printf("res.headers = ");
-            print_headers(headers, 1);
+            print_headers(headers, res.headers_len);
 
             res.body = s;
             res.body_len = strlen(s);
