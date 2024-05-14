@@ -6,6 +6,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #include "./request.h"
 #include "./response.h"
@@ -227,9 +228,20 @@ int main(int argc, char **argv)
             DBG("foo2");
             char *ce = get_header(req.headers, req.headers_len, "accept-encoding");
             DBG("foo3");
+
             if (ce) {
-                res.headers[res.headers_len].key = "Content-Encoding";
-                res.headers[res.headers_len++].value = ce;
+                bool has_gzip = false;
+                for (char *t;(t = strtok(ce, ", ")); ce = NULL) {
+                    if (!strcmp(t, "gzip")) {
+                        has_gzip = true;
+                        break;
+                    }
+                }
+
+                if (has_gzip) {
+                    res.headers[res.headers_len].key = "Content-Encoding";
+                    res.headers[res.headers_len++].value = "gzip";
+                }
             }
             DBG("foo4");
 
