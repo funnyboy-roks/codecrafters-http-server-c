@@ -144,6 +144,9 @@ int main(int argc, char **argv)
 
             Response res = {0};
 
+            res.status = 201;
+            res.status_text = "Created";
+
             FILE *f = fopen(full_path, "wb");
             if (f == NULL) {
                 PANIC("Cannot open file for writing %s: %m", full_path);
