@@ -244,6 +244,7 @@ int main(int argc, char **argv)
 
             char *ce = get_header(req.headers, req.headers_len, "accept-encoding");
 
+            bool set_body = false;
             if (ce) {
                 bool has_gzip = false;
                 for (char *t;(t = strtok(ce, ", ")); ce = NULL) {
@@ -262,21 +263,21 @@ int main(int argc, char **argv)
                     res.headers[res.headers_len++].value = "gzip";
                     DBG("len = %d", len);
                     res.body_len = len;
+                    set_body = true;
                 }
             }
 
-            printf("res.headers = ");
-            print_headers(headers, res.headers_len);
-
-            if (res.body == NULL) {
-                res.body = s;
-                res.body_len = strlen(s);
+            if (!set_body) {
+                memcpy(res.body, s, res.body_len = strlen(s));
                 printf("res.body = %s\n", res.body);
             } else {
                 printf("res.body = ");
                 print_bytes(res.body, res.body_len);
                 printf("\n");
             }
+
+            printf("res.headers = ");
+            print_headers(headers, res.headers_len);
 
             serres(response, res, &res_len);
             free(res.body);
