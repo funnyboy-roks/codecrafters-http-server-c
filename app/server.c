@@ -7,11 +7,11 @@
 #include <errno.h>
 #include <unistd.h>
 
-#define PANIC(...) do {                                \
-    printf("[PANIC] %s:%d ", __FILE_NAME__, __LINE__); \
-    printf(__VA_ARGS__);                               \
-    printf("\n");                                      \
-    exit(1);                                           \
+#define PANIC(...) do {                           \
+    printf("[PANIC] %s:%d ", __FILE__, __LINE__); \
+    printf(__VA_ARGS__);                          \
+    printf("\n");                                 \
+    exit(1);                                      \
 } while (0);
 
 typedef struct {
