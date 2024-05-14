@@ -28,11 +28,6 @@ void serres(char *buf, Response res, size_t *len)
         );
     }
 
-    *len += snprintf(buf + *len,
-        buf_cap - *len,
-        "\r\n"
-    );
-
     if (res.body_len) {
         *len += snprintf(buf + *len,
             buf_cap - *len,
@@ -40,6 +35,11 @@ void serres(char *buf, Response res, size_t *len)
             res.body_len
         );
     }
+
+    *len += snprintf(buf + *len,
+        buf_cap - *len,
+        "\r\n"
+    );
 
     memcpy(buf + *len, res.body, res.body_len);
     *len += res.body_len;
