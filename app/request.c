@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 
 #include "request.h"
 
@@ -49,6 +50,15 @@ Request parse_request(char *bytes, size_t len)
             out.headers = realloc(out.headers, headers_cap * sizeof(*out.headers));
         }
         out.headers[out.headers_len++] = header;
+        if (!strcmp(header.key, "content-length")) {
+            out.body_len = atol(header.value);
+        }
+    }
+
+    i += 2;
+
+    if (out.body_len) {
+        out.body = bytes + i;
     }
 
     return out;

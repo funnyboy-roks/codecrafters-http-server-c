@@ -52,9 +52,6 @@ int main(int argc, char **argv)
         if (!strcmp(argv[i], "--directory")) {
             dir = argv[i + 1];
             size_t dir_len = strlen(dir);
-            if (dir[dir_len - 1] == '/') {
-                dir[dir_len - 1] = '\0';
-            }
         }
     }
 
@@ -100,7 +97,7 @@ int main(int argc, char **argv)
 
         if (len == -1) PANIC("%m");
 
-        printf("buf = %s", buf);
+        printf("buf = %s\n", buf);
         printf("buf = "); print_bytes(buf, len); printf("\n");
 
         Request req = parse_request(buf, len);
@@ -109,6 +106,7 @@ int main(int argc, char **argv)
         printf("req.path = '%s'\n", req.path);
         printf("req.headers = ");
         print_headers(req.headers, req.headers_len);
+        printf("req.body = "); print_bytes(req.body, req.body_len); printf("\n");
 
         char *response = malloc(1024);
         size_t res_len;
@@ -136,6 +134,24 @@ int main(int argc, char **argv)
 
             serres(response, res, &res_len);
             printf("res = %.*s", (int) res_len, response);
+        } else if (!strcmp(req.method, "POST") && !strncmp(req.path, "/files/", sizeof("/files/") - 1)) {
+            char *file = req.path + sizeof("/files/") - 1;
+
+            char full_path[256];
+            sprintf(full_path, "%s/%s", dir, file);
+
+            DBG("full_path = %s", full_path);
+
+            Response res = {0};
+
+            FILE *f = fopen(full_path, "wb");
+            if (f == NULL) {
+                PANIC("Cannot open file for writing %s: %m", full_path);
+            } else {
+                if(!fwrite(req.body, 1, req.body_len, f)) PANIC("Unable to write to file %s: %m", full_path);
+            }
+            if (f) fclose(f);
+            serres(response, res, &res_len);
         } else if (!strcmp(req.method, "GET") && !strncmp(req.path, "/files/", sizeof("/files/") - 1)) {
             char *file = req.path + sizeof("/files/") - 1;
 
@@ -175,6 +191,7 @@ int main(int argc, char **argv)
                 printf("res = %.*s", (int) res_len, response);
                 free(res.body);
             }
+            if (f) fclose(f);
         } else if (!strcmp(req.method, "GET") && !strncmp(req.path, "/echo/", sizeof("/echo/") - 1)) {
             char *s = req.path + sizeof("/echo/") - 1;
             Response res = {0};
