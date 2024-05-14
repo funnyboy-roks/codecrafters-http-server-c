@@ -46,7 +46,7 @@ Request parse_request(char *bytes, size_t len)
 
         if (out.headers_len == headers_cap) {
             headers_cap *= 2;
-            out.headers = reallocarray(out.headers, headers_cap, sizeof(*out.headers));
+            out.headers = realloc(out.headers, headers_cap * sizeof(*out.headers));
         }
         out.headers[out.headers_len++] = header;
     }
