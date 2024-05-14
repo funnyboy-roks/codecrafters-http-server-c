@@ -49,10 +49,14 @@ int main(int argc, char **argv)
 {
     char *dir = NULL;
     for (int i = 1; i < argc; ++i) {
-        if (strcmp(argv[i], "--directory")) {
+        if (!strcmp(argv[i], "--directory")) {
             dir = argv[i + 1];
         }
     }
+
+    DBG("dir = %s", dir);
+
+    
 	// Disable output buffering
 	setbuf(stdout, NULL);
 
@@ -131,7 +135,10 @@ int main(int argc, char **argv)
         } else if (!strcmp(req.method, "GET") && !strncmp(req.path, "/files/", sizeof("/files/") - 1)) {
             char *file = req.path + sizeof("/files/") - 1;
 
-            DBG("file = %s", file);
+            char full_path[256];
+            sprintf(full_path, "%s/%s", dir, file);
+
+            DBG("full_path = %s", full_path);
 
             Response res = {0};
             ResponseHeader headers[] = {
@@ -146,7 +153,7 @@ int main(int argc, char **argv)
             printf("res.headers = ");
             print_headers(headers, 1);
 
-            FILE *f = fopen(file, "rb");
+            FILE *f = fopen(full_path, "rb");
             if (access(file, F_OK)) {
                 res_len = sprintf(response, "HTTP/1.1 404 Not Found\r\n\r\n");
             } else {
