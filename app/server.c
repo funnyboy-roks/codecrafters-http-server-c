@@ -127,9 +127,6 @@ int main(int argc, char **argv)
 
         if (len == -1) PANIC("%m");
 
-        printf("buf = %s\n", buf);
-        printf("buf = "); print_bytes(buf, len); printf("\n");
-
         Request req = parse_request(buf, len);
 
         printf("req.method = '%s'\n", req.method);
