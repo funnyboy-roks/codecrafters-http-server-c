@@ -7,7 +7,7 @@ done from [CodeCrafters](https://codecrafters.io).
 
 # Dependencies
 
-Requires [llib] to be installed
+Requires [zlib] to be installed
 
 [zlib]: http://zlib.net/ 
 
