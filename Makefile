@@ -1,4 +1,4 @@
 FILES=$(wildcard app/*.c)
 
 main: $(FILES)
-	gcc -ggdb -Wall $(FILES) -o main -lcurl -lz
+	$(CC) -ggdb -Wall $(FILES) -o main -lcurl -lz
